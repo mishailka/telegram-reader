@@ -1,0 +1,25 @@
+{
+  "name": "telegram-reader",
+  "version": "0.2.0",
+  "description": "Read, search and send Telegram messages through a private local session.",
+  "author": {
+    "name": "mishailka"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Telegram Reader",
+    "shortDescription": "Read, search and send Telegram messages.",
+    "longDescription": "Local Telegram integration for Windows. Choose allowed chats, read history, search, download attachments and send text or replies on your explicit instruction. Each user connects their own account.",
+    "developerName": "mishailka",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "РџРѕРєР°Р¶Рё РґРѕСЃС‚СѓРїРЅС‹Рµ С‡Р°С‚С‹ Telegram.",
+      "РќР°Р№РґРё РґРѕРіРѕРІРѕСЂС‘РЅРЅРѕСЃС‚Рё РІ РјРѕРµР№ РїРµСЂРµРїРёСЃРєРµ.",
+      "РџРѕРґРіРѕС‚РѕРІСЊ РѕС‚РІРµС‚ РїРѕ РєРѕРЅС‚РµРєСЃС‚Сѓ СЂР°Р·РіРѕРІРѕСЂР°."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

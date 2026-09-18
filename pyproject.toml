@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codex-telegram-reader"
+version = "0.2.0"
+description = "Local Telegram reading and messaging tools for Codex"
+requires-python = ">=3.11"
+dependencies = ["Telethon==1.45.0", "mcp==1.30.0"]
+
+[tool.setuptools.packages.find]
+include = ["telegram_reader*"]
+
+[tool.setuptools.package-data]
+telegram_reader = ["setup.html"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
