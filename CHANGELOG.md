@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- Allow creating an empty folder first and filling it with explicit chats later.
+
 ## 0.3.0
 
 - Inspect and analyze Telegram chats for folder organization.

@@ -206,8 +206,6 @@ async def _request_filter(reader, folder_id, current=None, title=None, rules=Non
 
 async def create_folder(reader, title, rules=None, include_chat_ids=None, exclude_chat_ids=None, pinned_chat_ids=None):
     title = _validate_title(title)
-    if not any(bool(value) for value in (rules or {}).values()) and not (include_chat_ids or pinned_chat_ids):
-        raise ValueError("A folder needs at least one automatic rule or an included/pinned chat.")
     client = await reader.connect()
     existing = await client(GetDialogFiltersRequest())
     ids = [int(x.id) for x in getattr(existing, "filters", []) or []]

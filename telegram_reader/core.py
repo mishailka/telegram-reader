@@ -75,7 +75,7 @@ def message_dict(message, chat_id: int) -> dict:
 def make_client(account: dict, *, updates: bool = False):
     return TelegramClient(
         StringSession(account.get("session", "")), account["api_id"], account["api_hash"],
-        device_model="Telegram Reader for Codex", app_version="0.3.0",
+        device_model="Telegram Reader for Codex", app_version="0.3.1",
         flood_sleep_threshold=0, request_retries=1, connection_retries=2,
         receive_updates=updates,
     )
