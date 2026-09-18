@@ -31,7 +31,7 @@ async def call(method, **kwargs):
     async with reader.lock:
         try:
             return await asyncio.wait_for(getattr(reader, method)(**kwargs), timeout=90 if method == "download" else 45)
-        except ReaderError as exc:
+        except (ReaderError, ValueError) as exc:
             return {"error": "request_rejected", "message": str(exc)}
         except errors.FloodWaitError as exc:
             return {"error": "rate_limited", "retry_after_seconds": exc.seconds, "message": "Wait before retrying. Do not loop."}
@@ -59,6 +59,87 @@ async def connection_status() -> dict[str, Any]:
 async def list_chats(limit: int = 50, offset: int = 0, query: str = "", unread_only: bool = False, archived: bool | None = None) -> dict[str, Any]:
     """List allowed chats with IDs/unread counts. archived: true archive, false main, null both. Follow next_offset; scan capped at 2000."""
     return await call("list_chats", limit=limit, offset=offset, query=query, unread_only=unread_only, archived=archived)
+
+
+@mcp.tool(annotations=READ)
+async def list_folders() -> dict[str, Any]:
+    """List native Telegram folders and their rules. The default and Archive tabs are not editable."""
+    return await call("list_folders")
+
+
+@mcp.tool(annotations=READ)
+async def inspect_folder(folder_id: int) -> dict[str, Any]:
+    """Inspect one user-created folder, including explicit chats, pinned chats and rule metadata."""
+    return await call("inspect_folder", folder_id=folder_id)
+
+
+@mcp.tool(annotations=READ)
+async def analyze_chats_for_folders(chat_ids: list[str] | None = None, include_recent_messages: bool = False, recent_messages_per_chat: int = 20) -> dict[str, Any]:
+    """Classify allowed chats for folder planning. Uses chat metadata by default; optionally scans up to 50 recent messages per chat for work/personal signals. Does not change Telegram."""
+    return await call("analyze_chats_for_folders", chat_ids=chat_ids, include_recent_messages=include_recent_messages, recent_messages_per_chat=recent_messages_per_chat)
+
+
+@mcp.tool(annotations=READ)
+async def suggest_folder_plan(categories: list[str] | None = None, include_recent_messages: bool = False) -> dict[str, Any]:
+    """Suggest a folder plan for Работа, Личное, Боты, Каналы, Проекты and Не разобрано. Returns a plan only; use preview_folder_changes before applying it."""
+    return await call("suggest_folder_plan", categories=categories, include_recent_messages=include_recent_messages)
+
+
+@mcp.tool(annotations=READ)
+async def preview_folder_changes(plan: dict[str, Any]) -> dict[str, Any]:
+    """Compare a suggested or manually edited folder plan with Telegram. Read-only; it does not create or change folders."""
+    return await call("preview_folder_changes", plan=plan)
+
+
+FOLDER_WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=True)
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def create_folder(title: str, rules: dict[str, bool] | None = None, include_chat_ids: list[str] | None = None, exclude_chat_ids: list[str] | None = None, pinned_chat_ids: list[str] | None = None) -> dict[str, Any]:
+    """Create a native Telegram folder. Supported rules: contacts, non_contacts, groups, broadcasts, bots, exclude_muted, exclude_read, exclude_archived. Titles are limited to 12 UTF-8 bytes."""
+    return await call("create_folder", title=title, rules=rules, include_chat_ids=include_chat_ids, exclude_chat_ids=exclude_chat_ids, pinned_chat_ids=pinned_chat_ids)
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def update_folder(folder_id: int, title: str | None = None, rules: dict[str, bool] | None = None) -> dict[str, Any]:
+    """Update the title or automatic rules of a user-created Telegram folder. Folder IDs 0 and 1 are protected."""
+    return await call("update_folder", folder_id=folder_id, title=title, rules=rules)
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def set_folder_chats(folder_id: int, include_chat_ids: list[str] | None = None, exclude_chat_ids: list[str] | None = None, pinned_chat_ids: list[str] | None = None, replace: bool = False) -> dict[str, Any]:
+    """Add or replace explicit included, excluded and pinned chats in a folder. Set replace=true only with the complete desired lists."""
+    return await call("set_folder_chats", folder_id=folder_id, include_chat_ids=include_chat_ids, exclude_chat_ids=exclude_chat_ids, pinned_chat_ids=pinned_chat_ids, replace=replace)
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def reorder_folders(order: list[int]) -> dict[str, Any]:
+    """Set the order of all editable Telegram folders. The list must contain every editable folder ID exactly once."""
+    return await call("reorder_folders", order=order)
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def delete_folder(folder_id: int) -> dict[str, Any]:
+    """Delete a user-created Telegram folder without deleting its chats or messages. The default and Archive tabs cannot be deleted."""
+    return await call("delete_folder", folder_id=folder_id)
+
+
+@mcp.tool(annotations=READ)
+async def list_folder_backups() -> dict[str, Any]:
+    """List encrypted local snapshots created before folder changes."""
+    return await call("list_folder_backups")
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def restore_folder_backup(backup_id: str) -> dict[str, Any]:
+    """Restore a selected encrypted folder snapshot. Chats outside the current access scope are preserved and never exposed."""
+    return await call("restore_folder_backup", backup_id=backup_id)
+
+
+@mcp.tool(annotations=FOLDER_WRITE)
+async def apply_folder_plan(plan: dict[str, Any], delete_unspecified: bool = False) -> dict[str, Any]:
+    """Apply a reviewed folder plan by title. This changes Telegram across devices; call only after the user explicitly asks to apply the preview."""
+    return await call("apply_folder_plan", plan=plan, delete_unspecified=delete_unspecified)
 
 
 @mcp.tool(annotations=READ)

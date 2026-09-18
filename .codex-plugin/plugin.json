@@ -1,6 +1,6 @@
 {
   "name": "telegram-reader",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Read, search and send Telegram messages through a private local session.",
   "author": {
     "name": "mishailka"

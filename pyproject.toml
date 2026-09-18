@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codex-telegram-reader"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local Telegram reading and messaging tools for Codex"
 requires-python = ">=3.11"
 dependencies = ["Telethon==1.45.0", "mcp==1.30.0"]

@@ -75,7 +75,7 @@ def message_dict(message, chat_id: int) -> dict:
 def make_client(account: dict, *, updates: bool = False):
     return TelegramClient(
         StringSession(account.get("session", "")), account["api_id"], account["api_hash"],
-        device_model="Telegram Reader for Codex", app_version="0.2.0",
+        device_model="Telegram Reader for Codex", app_version="0.3.0",
         flood_sleep_threshold=0, request_retries=1, connection_retries=2,
         receive_updates=updates,
     )
@@ -262,6 +262,103 @@ class Reader:
                 "has_more": more, "next_offset": offset + len(selected) if more and selected else None,
                 "scan_limit_reached": scanned == 2000, "scanned_dialogs": scanned,
                 "checked_at": utc_now(), "note": "Offsets are best-effort while chat order changes; no messages were marked read."}
+
+    async def list_folders(self):
+        from .folders import list_folders
+        return await list_folders(self)
+
+    async def inspect_folder(self, folder_id):
+        from .folders import inspect_folder
+        return await inspect_folder(self, int(folder_id))
+
+    async def analyze_chats_for_folders(self, chat_ids=None, include_recent_messages=False, recent_messages_per_chat=20):
+        from .folders import analyze_chats
+        return await analyze_chats(self, chat_ids=chat_ids, include_recent_messages=include_recent_messages,
+                                   recent_messages_per_chat=recent_messages_per_chat)
+
+    async def suggest_folder_plan(self, categories=None, include_recent_messages=False):
+        from .folders import suggest_plan
+        return await suggest_plan(self, categories=categories, include_recent_messages=include_recent_messages)
+
+    async def preview_folder_changes(self, plan):
+        from .folders import preview
+        current = await self.list_folders()
+        return {**preview(current, plan), "current": current, "plan": plan}
+
+    async def create_folder(self, title, rules=None, include_chat_ids=None, exclude_chat_ids=None, pinned_chat_ids=None):
+        from .folders import backup_folders, create_folder
+        backup = await backup_folders(self)
+        result = await create_folder(self, title, rules, include_chat_ids, exclude_chat_ids, pinned_chat_ids)
+        result["backup"] = backup
+        return result
+
+    async def update_folder(self, folder_id, title=None, rules=None):
+        from .folders import backup_folders, update_folder
+        backup = await backup_folders(self)
+        result = await update_folder(self, int(folder_id), title, rules)
+        result["backup"] = backup
+        return result
+
+    async def set_folder_chats(self, folder_id, include_chat_ids=None, exclude_chat_ids=None, pinned_chat_ids=None, replace=False):
+        from .folders import backup_folders, set_folder_chats
+        backup = await backup_folders(self)
+        result = await set_folder_chats(self, int(folder_id), include_chat_ids, exclude_chat_ids, pinned_chat_ids, replace)
+        result["backup"] = backup
+        return result
+
+    async def reorder_folders(self, order):
+        from .folders import backup_folders, reorder_folders
+        backup = await backup_folders(self)
+        result = await reorder_folders(self, order)
+        result["backup"] = backup
+        return result
+
+    async def delete_folder(self, folder_id):
+        from .folders import backup_folders, delete_folder
+        backup = await backup_folders(self)
+        result = await delete_folder(self, int(folder_id))
+        result["backup"] = backup
+        return result
+
+    async def list_folder_backups(self):
+        from .folders import list_backups
+        return list_backups()
+
+    async def restore_folder_backup(self, backup_id):
+        from .folders import backup_folders, restore_backup
+        safety_backup = await backup_folders(self)
+        result = await restore_backup(self, backup_id)
+        result["safety_backup"] = safety_backup
+        return result
+
+    async def apply_folder_plan(self, plan, delete_unspecified=False):
+        """Apply a reviewed plan by title; each mutation is explicit and ordered."""
+        from .folders import backup_folders, create_folder, update_folder, set_folder_chats, delete_folder, reorder_folders
+        backup = await backup_folders(self)
+        current = await self.list_folders()
+        existing = {item["title"]: item for item in current["folders"] if item["folder_id"] > 1}
+        results = []
+        seen = set()
+        for item in plan.get("folders", []):
+            title = item.get("title")
+            if not title:
+                raise ReaderError("Each planned folder needs a title.")
+            old = existing.get(title)
+            if old:
+                seen.add(old["folder_id"])
+                results.append(await update_folder(self, old["folder_id"], title=title, rules=item.get("rules")))
+                results.append(await set_folder_chats(self, old["folder_id"], item.get("include_chat_ids"), item.get("exclude_chat_ids"), item.get("pinned_chat_ids"), replace=True))
+            else:
+                results.append(await create_folder(self, title, item.get("rules"), item.get("include_chat_ids"), item.get("exclude_chat_ids"), item.get("pinned_chat_ids")))
+        if delete_unspecified:
+            for old in existing.values():
+                if old["folder_id"] not in seen:
+                    results.append(await delete_folder(self, old["folder_id"]))
+        refreshed = await self.list_folders()
+        requested_order = plan.get("order")
+        if requested_order is not None:
+            results.append(await reorder_folders(self, requested_order))
+        return {"applied": True, "results": results, "folders": refreshed, "deleted_unspecified": delete_unspecified, "backup": backup}
 
     async def messages(self, chat_id, limit=50, before_id=0, since=None, until=None,
                        query=None, sender_id=None, media_type=None):
